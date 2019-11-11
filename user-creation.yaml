@@ -1,0 +1,14 @@
+---
+- hosts: centos
+  become: yes
+  #become_method: sudo
+  tasks:
+   - user:
+      name: serviceuser
+      password: '$6$F4NWXRFtSdCi8$DsB5vvMJYusQhSbvGXrYDXL6Xj37MUuqFCd4dGXdKd6NyxT3lpdELN07/Kpo7EjjWnm9zusFg/LLFv6oc.ynu/'
+      groups: root  
+      state: present
+      shell: /bin/bash       
+      system: no            
+      createhome: yes       
+      home: /home/serviceuser 
