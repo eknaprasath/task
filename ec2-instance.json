@@ -1,0 +1,203 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "UAT Environment creation including EC2 instance & ELB creation",
+	"Metadata": {
+
+	},
+	"Parameters": {
+		"mysqlserverinstancetype": {
+			"Description" : "Database instance type",
+            "Type": "String",
+            "Default": "t2.medium",
+            "AllowedValues" : [ "t2.medium", "c5.xlarge", "c5.2xlarge", "m5.large"]
+        },
+        "Jumpboxinstancetype": {
+			"Description" : "Reverse Proxy instance type",
+            "Type": "String",
+            "Default": "t2.medium",
+            "AllowedValues" : [ "t2.medium", "c5.xlarge", "c5.2xlarge", "m5.large"]    
+        },
+        "reportinginstancetype": {
+			"Description" : "Reporting server instance type",
+            "Type": "String",
+            "Default": "t2.medium",
+            "AllowedValues" : [ "t2.medium", "c5.xlarge", "c5.2xlarge", "m5.large"]    
+		},
+		"serveramiid": {
+			"Type": "String",
+			"Description": "AMI ID to launch server."
+		},
+		"serverkeyname": {
+			"Description": "Amazon EC2 Key Pair",
+			"Type": "AWS::EC2::KeyPair::KeyName"
+        },  
+        "VPCStackName": {
+            "Description": "Name of an active CloudFormation stack that contains the networking resources, such as the subnet and security group, that will be used in this stack.",
+            "Type": "String",
+            "MinLength" : 1,
+            "MaxLength" : 255,
+            "AllowedPattern" : "^[a-zA-Z][-a-zA-Z0-9]*$",
+            "Default" : "vpc"
+          }
+	},
+
+	"Mappings": {
+
+	},
+	"Conditions": {
+
+	},
+	"Resources": {
+		"Jumpboxinstance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"InstanceInitiatedShutdownBehavior": "stop",
+				"ImageId": {
+					"Ref": "serveramiid"
+				},
+				"InstanceType": {
+					"Ref": "Jumpboxinstancetype"
+				},
+				"SecurityGroupIds": [
+					{ "Fn::ImportValue" :  {"Fn::Sub": "${VPCStackName}-AWSTELUATWEBSG" } }
+				],
+				"SubnetId": {
+					 "Fn::ImportValue" : {"Fn::Sub": "${VPCStackName}-AWSTELUATPUBLICSUBNET1" } 
+				},
+				"KeyName": {
+					"Ref": "serverkeyname"
+				},
+				"BlockDeviceMappings" : [
+                    {
+                       "DeviceName" : "/dev/sda1",
+                       "Ebs" : {
+                         "VolumeType" : "gp2",
+						 "Encrypted" : "true",
+                         "DeleteOnTermination" : "false",
+                         "VolumeSize" : "20"
+                       }
+                     }],
+				"Monitoring": "false",
+				"Tags": [{
+						"Key": "Backup",
+						"Value": "Yes"
+					},
+					{
+						"Key": "Name",
+						"Value": "AWSTELUATWEB1"
+                    },
+                    {
+						"Key": "Description",
+						"Value": "Jumpbox Server"
+					},
+					{
+						"Key": "HealthStatus",
+						"Value": "Yes"
+					},
+					{
+						"Key": "Retention",
+						"Value": "30"
+					},
+					{
+						"Key": "Environment",
+						"Value": "UAT"
+					},
+					{
+						"Key": "SSMpatching",
+						"Value": "yes"
+					}
+				]
+			}
+			
+		},
+		"EIP1": {
+			"Type": "AWS::EC2::EIP",
+			"Properties": {
+				"Domain": "vpc"
+			}
+		},
+		"JumpboxinstanceEIPAssoc": {
+			"Type": "AWS::EC2::EIPAssociation",
+			"DependsOn": "Jumpboxinstance",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"EIP1",
+						"AllocationId"
+					]
+				},
+				"InstanceId": {
+					"Ref": "Jumpboxinstance"
+				}
+			}
+        },
+        "mysqlserverinstance": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"InstanceInitiatedShutdownBehavior": "stop",
+				"ImageId": {
+					"Ref": "serveramiid"
+				},
+				"InstanceType": {
+					"Ref": "mysqlserverinstancetype"
+				},
+				"SecurityGroupIds": [
+					{ "Fn::ImportValue" :  {"Fn::Sub": "${VPCStackName}-AWSTELUATDBSG" } }
+				],
+				"SubnetId": {
+					"Fn::ImportValue" : {"Fn::Sub": "${VPCStackName}-AWSTELUATPRIVATESUBNET1" }
+				},
+				"KeyName": {
+					"Ref": "serverkeyname"
+				},
+				"BlockDeviceMappings" : [
+                    {
+                       "DeviceName" : "/dev/sda1",
+                       "Ebs" : {
+                         "VolumeType" : "gp2",
+						 "Encrypted" : "true",
+                         "DeleteOnTermination" : "false",
+                         "VolumeSize" : "200"
+                       }
+                     }],
+				"Monitoring": "false",
+				"Tags": [{
+						"Key": "Backup",
+						"Value": "Yes"
+					},
+					{
+						"Key": "Name",
+						"Value": "AWSTELUATDB1"
+                    },
+                    {
+						"Key": "Description",
+						"Value": "MySQL/Docman Server"
+					},
+					{
+						"Key": "HealthStatus",
+						"Value": "Yes"
+					},
+					{
+						"Key": "Retention",
+						"Value": "30"
+					},
+					{
+						"Key": "Environment",
+						"Value": "UAT"
+					},
+					{
+						"Key": "SSMpatching",
+						"Value": "yes"
+					}
+				]
+			}
+			
+		}
+		
+
+	},
+	
+	"Outputs": {
+
+	}
+}
